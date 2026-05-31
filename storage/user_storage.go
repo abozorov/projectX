@@ -5,20 +5,27 @@ import (
 	"os"
 	"sync"
 
-	"github.com/abozorov/projectX/errs"
 	"github.com/abozorov/projectX/models"
+	"github.com/abozorov/projectX/package/errs"
 )
 
 type UserStorage struct {
-	Mu       sync.Mutex
-	FileName string
+	mu       sync.Mutex
+	fileName string
+}
+
+func NewUSerStorage(fileName string) *UserStorage {
+	return &UserStorage{
+		mu:       sync.Mutex{},
+		fileName: fileName,
+	}
 }
 
 func (s *UserStorage) GetAll() ([]models.User, error) {
 	// open file
-	s.Mu.Lock()
-	defer s.Mu.Unlock()
-	file, err := os.OpenFile(s.FileName, os.O_RDONLY, 0644)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	file, err := os.OpenFile(s.fileName, os.O_RDONLY, 0644)
 	if err != nil {
 		return []models.User{}, err
 	}
@@ -54,9 +61,9 @@ func (s *UserStorage) GetByID(id int) (*models.User, error) {
 // write data
 func writeData(s *UserStorage, data []models.User) error {
 	// open file
-	s.Mu.Lock()
-	defer s.Mu.Unlock()
-	writeFile, err := os.OpenFile(s.FileName, os.O_WRONLY|os.O_TRUNC, 0644)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	writeFile, err := os.OpenFile(s.fileName, os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}

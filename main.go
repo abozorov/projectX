@@ -7,9 +7,13 @@ import (
 	"os"
 
 	"github.com/abozorov/projectX/handlers"
-	"github.com/abozorov/projectX/middleware"
+	"github.com/abozorov/projectX/handlers/middleware"
 	"github.com/abozorov/projectX/models"
 	"github.com/abozorov/projectX/storage"
+)
+
+var (
+	dataFile = "data/users.json"
 )
 
 func initFile(fileName string) error {
@@ -29,31 +33,21 @@ func initFile(fileName string) error {
 
 func main() {
 
-	st := &storage.UserStorage{
-		FileName: "data/users.json",
-	}
-
-	err := initFile(st.FileName)
+	st := storage.NewUSerStorage(dataFile)
+	err := initFile(dataFile)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
-	h := &handlers.UserHandler{
-		Storage: st,
-	}
+	h := handlers.NewUserHandler(st)
 
 	mux := http.NewServeMux()
-
 	// GET /users
 	mux.Handle("GET /users", http.HandlerFunc(h.GetUsers))
-
 	// GET /users/{id}
 	mux.Handle("GET /users/{user_id}", http.HandlerFunc(h.GetUserByID))
-
 	// POST /users
 	mux.Handle("POST /users", http.HandlerFunc(h.CreateUser))
-
 	// PUT /users/{id}
 	mux.Handle("PUT /users/{user_id}", http.HandlerFunc(h.UpdateUser))
 
