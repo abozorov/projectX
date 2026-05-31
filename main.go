@@ -1,18 +1,42 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/abozorov/projectX/handlers"
 	"github.com/abozorov/projectX/middleware"
+	"github.com/abozorov/projectX/models"
 	"github.com/abozorov/projectX/storage"
 )
+
+func initFile(fileName string) error {
+	file, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	users := []models.User{}
+	err = json.NewDecoder(file).Decode(&users)
+
+	if err != nil {
+		file.WriteString("[]")
+	}
+	return nil
+}
 
 func main() {
 
 	st := &storage.UserStorage{
 		FileName: "data/users.json",
+	}
+
+	err := initFile(st.FileName)
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
 
 	h := &handlers.UserHandler{
