@@ -36,4 +36,5 @@ go.work.sum
 *.txt
 *.log
 *.pptx
+*.json
 hw24.md
