@@ -1,8 +1,8 @@
 package models
 
 type User struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID   int
+	Name string
 }
 
 func NewUser(id int, name string) *User {

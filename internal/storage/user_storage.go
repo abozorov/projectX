@@ -1,11 +1,12 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"sync"
 
-	"github.com/abozorov/projectX/models"
+	"github.com/abozorov/projectX/internal/models"
 	"github.com/abozorov/projectX/package/errs"
 )
 
@@ -14,14 +15,19 @@ type UserStorage struct {
 	fileName string
 }
 
-func NewUSerStorage(fileName string) *UserStorage {
+type user struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+func NewUserStorage(fileName string) *UserStorage {
 	return &UserStorage{
 		mu:       sync.Mutex{},
 		fileName: fileName,
 	}
 }
 
-func (s *UserStorage) GetAll() ([]models.User, error) {
+func (s *UserStorage) GetAll(ctx context.Context) ([]models.User, error) {
 	// open file
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -32,19 +38,26 @@ func (s *UserStorage) GetAll() ([]models.User, error) {
 	defer file.Close()
 
 	// read data
-	users := make([]models.User, 0)
+	users := make([]user, 0)
 	err = json.NewDecoder(file).Decode(&users)
 	if err != nil {
 		return []models.User{}, err
 	}
 
 	// return data
-	return users, nil
+	resp := make([]models.User, 0, len(users))
+	for _, v := range users {
+		resp = append(resp, models.User{
+			ID:   v.ID,
+			Name: v.Name,
+		})
+	}
+	return resp, nil
 }
 
-func (s *UserStorage) GetByID(id int) (*models.User, error) {
+func (s *UserStorage) GetByID(ctx context.Context, id int) (*models.User, error) {
 	// load all users
-	users, err := s.GetAll()
+	users, err := s.GetAll(ctx)
 	if err != nil {
 		return &models.User{}, err
 	}
@@ -59,7 +72,7 @@ func (s *UserStorage) GetByID(id int) (*models.User, error) {
 }
 
 // write data
-func writeData(s *UserStorage, data []models.User) error {
+func writeData(s *UserStorage, data []user) error {
 	// open file
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -79,28 +92,35 @@ func writeData(s *UserStorage, data []models.User) error {
 	return nil
 }
 
-func (s *UserStorage) Create(user models.User) error {
+func (s *UserStorage) Create(ctx context.Context, usr models.User) error {
 	// load users
-	users, err := s.GetAll()
+	users, err := s.GetAll(ctx)
 	if err != nil {
 		return err
 	}
 
 	// check for exist
-	if _, err := s.GetByID(user.ID); err == nil {
+	if _, err := s.GetByID(ctx, usr.ID); err == nil {
 		return errs.ErrUserAlreadyExists
 	}
 
 	// add user
-	users = append(users, user)
+	users = append(users, usr)
 
 	// write data
-	return writeData(s, users)
+	resp := make([]user, 0, len(users))
+	for _, v := range users {
+		resp = append(resp, user{
+			ID:   v.ID,
+			Name: v.Name,
+		})
+	}
+	return writeData(s, resp)
 }
 
-func (s *UserStorage) Update(id int, user models.User) error {
+func (s *UserStorage) Update(ctx context.Context, usr models.User) error {
 	// load users
-	users, err := s.GetAll()
+	users, err := s.GetAll(ctx)
 	if err != nil {
 		return err
 	}
@@ -108,9 +128,9 @@ func (s *UserStorage) Update(id int, user models.User) error {
 	// update with id
 	ok := false
 	for k, v := range users {
-		if v.ID == id {
+		if v.ID == usr.ID {
 			ok = true
-			users[k] = user
+			users[k] = usr
 			break
 		}
 	}
@@ -119,5 +139,12 @@ func (s *UserStorage) Update(id int, user models.User) error {
 	}
 
 	// write data
-	return writeData(s, users)
+	resp := make([]user, 0, len(users))
+	for _, v := range users {
+		resp = append(resp, user{
+			ID:   v.ID,
+			Name: v.Name,
+		})
+	}
+	return writeData(s, resp)
 }
