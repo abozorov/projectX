@@ -1,15 +1,18 @@
 package logger
 
 import (
+	"fmt"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 type Logger struct {
 	*zap.Logger
+	Audit *zap.Logger
 }
 
-func NewLogger(devMode bool) *Logger {
+func NewLogger(devMode bool) (*Logger, error) {
 	var cfg zap.Config
 	if devMode {
 		cfg = zap.NewDevelopmentConfig()
@@ -19,10 +22,22 @@ func NewLogger(devMode bool) *Logger {
 	cfg.EncoderConfig.TimeKey = "timestamp"
 	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	cfg.OutputPaths = []string{"stdout"}
-	var err error
+
 	logger, err := cfg.Build()
 	if err != nil {
-		panic(err)
+		return &Logger{}, fmt.Errorf("mainLogger.Build: %w", err)
 	}
-	return &Logger{logger}
+
+	auditCfg := cfg
+	auditCfg.OutputPaths = []string{"logs/audit.log"}
+	auditLogger, err := auditCfg.Build()
+	if err != nil {
+		return &Logger{}, fmt.Errorf("auditLogger.Build: %w", err)
+
+	}
+
+	return &Logger{
+		logger,
+		auditLogger,
+	}, nil
 }
