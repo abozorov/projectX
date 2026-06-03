@@ -6,7 +6,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/abozorov/projectX/handlers"
 	"github.com/abozorov/projectX/handlers/middleware"
@@ -40,7 +43,7 @@ func initFile(fileName string) error {
 
 func main() {
 
-	ctx := context.WithoutCancel(context.Background())
+	ctx, cancle := context.WithCancel(context.Background())
 
 	wg := sync.WaitGroup{}
 
@@ -66,14 +69,33 @@ func main() {
 
 	h := handlers.NewUserHandler(service, logger)
 
-	mux := handlers.NewRouter(h)
-
-	handler := middleware.Logging(middleware.Auth(mux))
-
-	log.Println("Server localhost:8080 started")
-	err = http.ListenAndServe(":8080", handler)
-	if err != nil {
-		logger.Error("Func main", zap.Error(err))
-		return
+	handler := middleware.Logging(middleware.Auth(handlers.NewRouter(h)))
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: handler,
 	}
+
+	go func() {
+		log.Printf("Server started localhost:%s started", server.Addr)
+		err = server.ListenAndServe()
+		if err != nil {
+			logger.Error("Func main", zap.Error(err))
+			return
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	<-stop
+	cancle()
+
+	logger.Info("Shutdown server started")
+	stopCtx, stopCancle := context.WithTimeout(context.Background(), time.Second*5)
+	defer stopCancle()
+
+	server.Shutdown(stopCtx)
+
+	wg.Wait()
+	logger.Info("Server shutdown completed")
 }
