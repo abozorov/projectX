@@ -2,13 +2,16 @@ package handlers
 
 import (
 	"net/http"
+
+	requestQueue "github.com/abozorov/projectX/internal/request_queue"
 )
 
 type Router struct {
 	*http.ServeMux
+	QueueLimit *requestQueue.QueueLimit
 }
 
-func NewRouter(h *UserHandler) *Router {
+func NewRouter(h *UserHandler, queue *requestQueue.QueueLimit) *Router {
 	mux := http.NewServeMux()
 
 	// user handlers
@@ -19,5 +22,6 @@ func NewRouter(h *UserHandler) *Router {
 
 	return &Router{
 		mux,
+		queue,
 	}
 }

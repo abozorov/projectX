@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/abozorov/projectX/internal/models"
+	requestQueue "github.com/abozorov/projectX/internal/request_queue"
 	"github.com/abozorov/projectX/internal/service"
 	"github.com/abozorov/projectX/package/errs"
 	"github.com/abozorov/projectX/package/logger"
@@ -15,6 +17,7 @@ import (
 type UserHandler struct {
 	service *service.UserService
 	log     *logger.Logger
+	queue   *requestQueue.QueueLimit
 }
 
 type user struct {
@@ -22,18 +25,38 @@ type user struct {
 	Name string `json:"name"`
 }
 
-func NewUserHandler(service *service.UserService, logger *logger.Logger) *UserHandler {
+func NewUserHandler(service *service.UserService, logger *logger.Logger, queue *requestQueue.QueueLimit) *UserHandler {
 	return &UserHandler{
 		service: service,
 		log:     logger,
+		queue:   queue,
 	}
+}
+
+func (h *UserHandler) doneRequest(r *http.Request) {
+	// request done
+	cliID, _ := strconv.Atoi(r.Header.Get("client_id"))
+	reqID, _ := strconv.Atoi(r.Header.Get("request_id"))
+
+	h.queue.Publish(cliID, reqID)
+}
+
+func (h *UserHandler) updateContext(ctx context.Context, r *http.Request) context.Context {
+	cliID, _ := strconv.Atoi(r.Header.Get("client_id"))
+	reqID, _ := strconv.Atoi(r.Header.Get("request_id"))
+
+	ctx, _ = context.WithDeadline(ctx, h.queue.GetEndTime(cliID, reqID))
+	return ctx
 }
 
 func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Start func GetUsers")
 
+	// defer request done
+	defer h.doneRequest(r)
+
 	// load all
-	users, err := h.service.GetAll(r.Context())
+	users, err := h.service.GetAll(h.updateContext(r.Context(), r))
 	if err != nil {
 		errDistributor(err, w)
 		h.log.Error("Func GetUsers", zap.String("error", err.Error()))
@@ -61,6 +84,9 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Start func GetUserByID", zap.String("user_id", r.PathValue("user_id")))
 
+	// defer request done
+	defer h.doneRequest(r)
+
 	// check path
 	id, err := strconv.Atoi(r.PathValue("user_id"))
 	if err != nil {
@@ -70,7 +96,7 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get by id
-	usr, err := h.service.GetByID(r.Context(), id)
+	usr, err := h.service.GetByID(h.updateContext(r.Context(), r), id)
 	if err != nil {
 		h.log.Error("Func GetUserByID", zap.String("error", err.Error()))
 		errDistributor(err, w)
@@ -95,6 +121,9 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Start func CreateUser")
 
+	// defer request done
+	defer h.doneRequest(r)
+
 	// get user
 	usr := user{}
 	err := json.NewDecoder(r.Body).Decode(&usr)
@@ -105,7 +134,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// creating & transform models.User -> user
-	err = h.service.Create(r.Context(), models.User{
+	err = h.service.Create(h.updateContext(r.Context(), r), models.User{
 		ID:   usr.ID,
 		Name: usr.Name,
 	})
@@ -119,6 +148,9 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Start func UpdateUser", zap.String("user_id", r.PathValue("user_id")))
+
+	// defer request done
+	defer h.doneRequest(r)
 
 	// check path
 	id, err := strconv.Atoi(r.PathValue("user_id"))
@@ -138,7 +170,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// updating
-	err = h.service.Update(r.Context(), id, models.User{
+	err = h.service.Update(h.updateContext(r.Context(), r), id, models.User{
 		ID:   usr.ID,
 		Name: usr.Name,
 	})

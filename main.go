@@ -15,6 +15,7 @@ import (
 	"github.com/abozorov/projectX/handlers/middleware"
 	"github.com/abozorov/projectX/internal/consumer"
 	"github.com/abozorov/projectX/internal/models"
+	requestQueue "github.com/abozorov/projectX/internal/request_queue"
 	"github.com/abozorov/projectX/internal/service"
 	events "github.com/abozorov/projectX/internal/service/eventbus"
 	"github.com/abozorov/projectX/internal/storage"
@@ -43,21 +44,20 @@ func initFile(fileName string) error {
 
 func main() {
 
-	ctx, cancle := context.WithCancel(context.Background())
-
+	// for logger
+	loggerCtx, loggerCancle := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
+	// create logger
 	logger, err := logger.NewLogger(true)
 	if err != nil {
 		logger.Error("Func main", zap.Error(err))
 		return
 	}
 
+	// create event bus
 	bus := events.NewBus(10)
-
-	consumer.StartAuditConsumer(ctx, &wg, bus, logger)
-
-	st := storage.NewUserStorage(dataFile)
+	consumer.StartAuditConsumer(loggerCtx, &wg, bus, logger)
 
 	err = initFile(dataFile)
 	if err != nil {
@@ -65,11 +65,19 @@ func main() {
 		return
 	}
 
+	// start queue consumer
+	queueCtx, queueCancle := context.WithCancel(context.Background())
+
+	queue := requestQueue.NewQueueLimit(10)
+	requestQueue.StartQueueConsumer(queueCtx, &wg, queue)
+
+	st := storage.NewUserStorage(dataFile)
 	service := service.NewUserService(st, bus)
+	h := handlers.NewUserHandler(service, logger, queue)
 
-	h := handlers.NewUserHandler(service, logger)
-
-	handler := middleware.Logging(middleware.Auth(handlers.NewRouter(h)))
+	// create server
+	router := handlers.NewRouter(h, queue)
+	handler := middleware.QueueLimit(router.QueueLimit, middleware.Logging(middleware.Auth(router)))
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: handler,
@@ -84,11 +92,13 @@ func main() {
 		}
 	}()
 
+	// gracefully shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	<-stop
-	cancle()
+	loggerCancle()
+	queueCancle()
 
 	logger.Info("Shutdown server started")
 	stopCtx, stopCancle := context.WithTimeout(context.Background(), time.Second*5)

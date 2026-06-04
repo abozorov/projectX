@@ -17,11 +17,12 @@ func StartAuditConsumer(ctx context.Context, wg *sync.WaitGroup, bus *events.Bus
 		for {
 			select {
 			case <-ctx.Done():
+				log.Info("Audit Consumer closed")
 				return
 			case event := <-bus.Subscribe():
 				log.Audit.Info(
 					event.Type,
-					zap.Int("user_id", event.ClientId),
+					zap.Int("client_id", event.ClientId),
 				)
 			}
 		}
