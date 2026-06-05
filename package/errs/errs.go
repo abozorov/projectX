@@ -18,6 +18,9 @@ var (
 	// Too Many Requests
 	ErrTooManyRequests = errors.New("too Many Requests")
 
+	// Timeout exceeded 
+	ErrTimeoutExceeded = errors.New("timeout exceeded")
+
 	// NotFound
 	ErrNotFound       = errors.New("not found")
 	ErrUserNotFound   = errors.New("user not found")

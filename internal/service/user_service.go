@@ -29,14 +29,18 @@ func (s *UserService) GetAll(ctx context.Context) ([]models.User, error) {
 	if err != nil {
 		return []models.User{}, fmt.Errorf("s.storage.GetAll: %w", err)
 	}
+	select {
+	case <-ctx.Done():
+		return []models.User{}, fmt.Errorf("s.storage.GetAll: %w", errs.ErrTimeoutExceeded)
+	default:
+		// audit
+		s.bus.Publish(events.Event{
+			Type:     "Get all users",
+			ClientId: rand.Int(),
+		})
 
-	// audit
-	s.bus.Publish(events.Event{
-		Type:     "Get all users",
-		ClientId: rand.Int(),
-	})
-
-	return users, nil
+		return users, nil
+	}
 }
 
 func (s *UserService) GetByID(ctx context.Context, id int) (*models.User, error) {
@@ -51,13 +55,18 @@ func (s *UserService) GetByID(ctx context.Context, id int) (*models.User, error)
 		return &models.User{}, fmt.Errorf("s.storage.GetByID: %w", err)
 	}
 
-	// audit
-	s.bus.Publish(events.Event{
-		Type:     "Get user by id",
-		ClientId: rand.Int(),
-	})
+	select {
+	case <-ctx.Done():
+		return &models.User{}, fmt.Errorf("s.storage.GetByID: %w", errs.ErrTimeoutExceeded)
+	default:
+		// audit
+		s.bus.Publish(events.Event{
+			Type:     "Get user by id",
+			ClientId: rand.Int(),
+		})
 
-	return user, nil
+		return user, nil
+	}
 }
 
 func (s *UserService) Create(ctx context.Context, u models.User) error {
@@ -71,14 +80,19 @@ func (s *UserService) Create(ctx context.Context, u models.User) error {
 	if err != nil {
 		return fmt.Errorf("s.storage.Create: %w", err)
 	}
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("s.storage.Create: %w", errs.ErrTimeoutExceeded)
+	default:
 
-	// audit
-	s.bus.Publish(events.Event{
-		Type:     "Create user",
-		ClientId: rand.Int(),
-	})
+		// audit
+		s.bus.Publish(events.Event{
+			Type:     "Create user",
+			ClientId: rand.Int(),
+		})
 
-	return nil
+		return nil
+	}
 }
 
 func (s *UserService) Update(ctx context.Context, id int, u models.User) error {
@@ -92,12 +106,17 @@ func (s *UserService) Update(ctx context.Context, id int, u models.User) error {
 	if err != nil {
 		return fmt.Errorf("s.storage.Update: %w", err)
 	}
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("s.storage.Update: %w", errs.ErrTimeoutExceeded)
+	default:
 
-	// audit
-	s.bus.Publish(events.Event{
-		Type:     "Update user",
-		ClientId: rand.Int(),
-	})
+		// audit
+		s.bus.Publish(events.Event{
+			Type:     "Update user",
+			ClientId: rand.Int(),
+		})
 
-	return nil
+		return nil
+	}
 }

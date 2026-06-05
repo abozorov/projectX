@@ -30,6 +30,14 @@ func errDistributor(err error, w http.ResponseWriter) {
 	case errors.Is(err, errs.ErrInvalidUserId):
 		http.Error(w, errs.ErrInvalidUserId.Error(), http.StatusBadRequest)
 
+	// http.StatusTooManyRequests
+	case errors.Is(err, errs.ErrTooManyRequests):
+		http.Error(w, errs.ErrTooManyRequests.Error(), http.StatusTooManyRequests)
+
+	// http.StatusGatewayTimeout
+	case errors.Is(err, errs.ErrTimeoutExceeded):
+		http.Error(w, errs.ErrTimeoutExceeded.Error(), http.StatusGatewayTimeout)
+
 	// http.StatusInternalServerError
 	default:
 		http.Error(w, errs.ErrSomethingWentWrong.Error(), http.StatusInternalServerError)

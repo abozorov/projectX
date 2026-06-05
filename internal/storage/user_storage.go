@@ -28,6 +28,9 @@ func NewUserStorage(fileName string) *UserStorage {
 }
 
 func (s *UserStorage) GetAll(ctx context.Context) ([]models.User, error) {
+	// // sleep
+	// time.Sleep(time.Second * 15)
+
 	// open file
 	s.mu.Lock()
 	defer s.mu.Unlock()
