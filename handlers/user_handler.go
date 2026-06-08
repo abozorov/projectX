@@ -20,7 +20,13 @@ type UserHandler struct {
 	queue   *requestQueue.QueueLimit
 }
 
-type user struct {
+type updateUser struct {
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
+type getUser struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
@@ -49,6 +55,34 @@ func (h *UserHandler) updateContext(ctx context.Context, r *http.Request) contex
 	return ctx
 }
 
+func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
+	// request done
+	defer h.doneRequest(r)
+
+	// get user
+	usr := updateUser{}
+	err := json.NewDecoder(r.Body).Decode(&usr)
+	if err != nil {
+		h.log.Error("Func Login", zap.String("error", err.Error()))
+		errDistributor(err, w)
+		return
+	}
+
+	// check user
+	autorizationKey, err := h.service.Login(h.updateContext(r.Context(), r), models.User{
+		ID:       usr.ID,
+		Password: usr.Password,
+	})
+	if err != nil {
+		h.log.Error("Func Login", zap.String("error", err.Error()))
+		errDistributor(err, w)
+		return
+	}
+
+	// return autorization code
+	w.Write([]byte("key: " + autorizationKey))
+}
+
 func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Start func GetUsers")
 
@@ -64,9 +98,9 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// transform models.User -> user
-	resp := make([]user, 0, len(users))
+	resp := make([]getUser, 0, len(users))
 	for _, v := range users {
-		resp = append(resp, user{
+		resp = append(resp, getUser{
 			ID:   v.ID,
 			Name: v.Name,
 		})
@@ -104,7 +138,7 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// transform models.User -> user
-	resp := user{
+	resp := getUser{
 		ID:   usr.ID,
 		Name: usr.Name,
 	}
@@ -125,7 +159,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	defer h.doneRequest(r)
 
 	// get user
-	usr := user{}
+	usr := updateUser{}
 	err := json.NewDecoder(r.Body).Decode(&usr)
 	if err != nil {
 		h.log.Error("Func CreateUser", zap.String("error", err.Error()))
@@ -134,10 +168,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// creating & transform models.User -> user
-	err = h.service.Create(h.updateContext(r.Context(), r), models.User{
-		ID:   usr.ID,
-		Name: usr.Name,
-	})
+	err = h.service.Create(h.updateContext(r.Context(), r), *models.NewUser(usr.ID, usr.Name, usr.Password))
 	if err != nil {
 		h.log.Error("Func CreateUser", zap.String("error", err.Error()))
 		errDistributor(err, w)
@@ -153,16 +184,16 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	defer h.doneRequest(r)
 
 	// check path
-	id, err := strconv.Atoi(r.PathValue("user_id"))
-	if err != nil {
-		h.log.Error("Func UpdateUser", zap.String("error", err.Error()))
-		errDistributor(errs.ErrBadRequestQuery, w)
-		return
-	}
+	// id, err := strconv.Atoi(r.PathValue("user_id"))
+	// if err != nil {
+	// 	h.log.Error("Func UpdateUser", zap.String("error", err.Error()))
+	// 	errDistributor(errs.ErrBadRequestQuery, w)
+	// 	return
+	// }
 
 	// get user
-	usr := user{}
-	err = json.NewDecoder(r.Body).Decode(&usr)
+	usr := getUser{}
+	err := json.NewDecoder(r.Body).Decode(&usr)
 	if err != nil {
 		h.log.Error("Func UpdateUser", zap.String("error", err.Error()))
 		errDistributor(err, w)
@@ -170,9 +201,9 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// updating
-	err = h.service.Update(h.updateContext(r.Context(), r), id, models.User{
-		ID:   usr.ID,
+	err = h.service.Update(h.updateContext(r.Context(), r), models.User{
 		Name: usr.Name,
+		ID:   usr.ID,
 	})
 	if err != nil {
 		h.log.Error("Func UpdateUser", zap.String("error", err.Error()))

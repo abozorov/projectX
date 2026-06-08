@@ -18,8 +18,11 @@ var (
 	// Too Many Requests
 	ErrTooManyRequests = errors.New("too Many Requests")
 
-	// Timeout exceeded 
+	// Timeout exceeded
 	ErrTimeoutExceeded = errors.New("timeout exceeded")
+
+	// Unautorized
+	ErrIncorrectLoginOrPassword = errors.New("incorrect login or password")
 
 	// NotFound
 	ErrNotFound       = errors.New("not found")

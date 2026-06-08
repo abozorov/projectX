@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/abozorov/projectX/handlers"
-	"github.com/abozorov/projectX/handlers/middleware"
 	"github.com/abozorov/projectX/internal/consumer"
 	"github.com/abozorov/projectX/internal/models"
 	requestQueue "github.com/abozorov/projectX/internal/request_queue"
@@ -66,10 +65,10 @@ func main() {
 	}
 
 	// start queue consumer
-	queueCtx, queueCancle := context.WithCancel(context.Background())
+	// queueCtx, queueCancle := context.WithCancel(context.Background())
 
 	queue := requestQueue.NewQueueLimit(10)
-	requestQueue.StartQueueConsumer(queueCtx, &wg, queue)
+	requestQueue.StartQueueConsumer(loggerCtx, &wg, queue)
 
 	st := storage.NewUserStorage(dataFile)
 	service := service.NewUserService(st, bus)
@@ -77,10 +76,9 @@ func main() {
 
 	// create server
 	router := handlers.NewRouter(h, queue)
-	handler := middleware.QueueLimit(router.QueueLimit, middleware.Logging(middleware.Auth(router)))
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: handler,
+		Handler: router,
 	}
 
 	go func() {
@@ -98,7 +96,7 @@ func main() {
 
 	<-stop
 	loggerCancle()
-	queueCancle()
+	// queueCancle()
 
 	logger.Info("Shutdown server started")
 	stopCtx, stopCancle := context.WithTimeout(context.Background(), time.Second*5)

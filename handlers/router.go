@@ -3,25 +3,29 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/abozorov/projectX/handlers/middleware"
 	requestQueue "github.com/abozorov/projectX/internal/request_queue"
 )
 
 type Router struct {
 	*http.ServeMux
-	QueueLimit *requestQueue.QueueLimit
 }
 
 func NewRouter(h *UserHandler, queue *requestQueue.QueueLimit) *Router {
-	mux := http.NewServeMux()
+	userMux := http.NewServeMux()
 
 	// user handlers
-	mux.Handle("GET /users", http.HandlerFunc(h.GetUsers))
-	mux.Handle("GET /user/{user_id}", http.HandlerFunc(h.GetUserByID))
-	mux.Handle("POST /user", http.HandlerFunc(h.CreateUser))
-	mux.Handle("PUT /user/{user_id}", http.HandlerFunc(h.UpdateUser))
+	userMux.Handle("GET /users", http.HandlerFunc(h.GetUsers))
+	userMux.Handle("GET /user/{user_id}", http.HandlerFunc(h.GetUserByID))
+	userMux.Handle("POST /user", http.HandlerFunc(h.CreateUser))
+	userMux.Handle("PUT /user", http.HandlerFunc(h.UpdateUser))
+	// userMux.Handle("DELETE /users/{id}", http.HandlerFunc(h.DeleteUser))
+	userMux.Handle("/", middleware.QueueLimit(queue, middleware.Logging(middleware.Auth(userMux))))
+
+	// login
+	userMux.Handle("POST /login", middleware.QueueLimit(queue, middleware.Logging(http.HandlerFunc(h.Login))))
 
 	return &Router{
-		mux,
-		queue,
+		userMux,
 	}
 }

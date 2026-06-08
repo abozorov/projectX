@@ -16,8 +16,19 @@ type UserStorage struct {
 }
 
 type user struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	IsActive bool   `json:"is_active"`
+}
+
+func newUser(v models.User) *user {
+	return &user{
+		ID:       v.ID,
+		Name:     v.Name,
+		Password: v.Password,
+		IsActive: v.IsActive,
+	}
 }
 
 func NewUserStorage(fileName string) *UserStorage {
@@ -26,6 +37,18 @@ func NewUserStorage(fileName string) *UserStorage {
 		fileName: fileName,
 	}
 }
+
+// func (s *UserStorage) Login(ctx context.Context, u models.User) (string, error) {
+// 	// load all users
+// 	users, err := s.GetAll(ctx)
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	// check user
+
+// 	// return autorization code
+// }
 
 func (s *UserStorage) GetAll(ctx context.Context) ([]models.User, error) {
 	// // sleep
@@ -51,8 +74,10 @@ func (s *UserStorage) GetAll(ctx context.Context) ([]models.User, error) {
 	resp := make([]models.User, 0, len(users))
 	for _, v := range users {
 		resp = append(resp, models.User{
-			ID:   v.ID,
-			Name: v.Name,
+			ID:       v.ID,
+			Name:     v.Name,
+			Password: v.Password,
+			IsActive: v.IsActive,
 		})
 	}
 	return resp, nil
@@ -114,8 +139,9 @@ func (s *UserStorage) Create(ctx context.Context, usr models.User) error {
 	resp := make([]user, 0, len(users))
 	for _, v := range users {
 		resp = append(resp, user{
-			ID:   v.ID,
-			Name: v.Name,
+			ID:       v.ID,
+			Name:     v.Name,
+			Password: v.Password,
 		})
 	}
 	return writeData(s, resp)
@@ -133,6 +159,7 @@ func (s *UserStorage) Update(ctx context.Context, usr models.User) error {
 	for k, v := range users {
 		if v.ID == usr.ID {
 			ok = true
+			usr.IsActive = users[k].IsActive
 			users[k] = usr
 			break
 		}
@@ -144,10 +171,7 @@ func (s *UserStorage) Update(ctx context.Context, usr models.User) error {
 	// write data
 	resp := make([]user, 0, len(users))
 	for _, v := range users {
-		resp = append(resp, user{
-			ID:   v.ID,
-			Name: v.Name,
-		})
+		resp = append(resp, *newUser(v))
 	}
 	return writeData(s, resp)
 }

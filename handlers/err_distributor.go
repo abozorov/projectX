@@ -38,6 +38,10 @@ func errDistributor(err error, w http.ResponseWriter) {
 	case errors.Is(err, errs.ErrTimeoutExceeded):
 		http.Error(w, errs.ErrTimeoutExceeded.Error(), http.StatusGatewayTimeout)
 
+	// http.StatusUnauthorized
+	case errors.Is(err, errs.ErrIncorrectLoginOrPassword):
+		http.Error(w, errs.ErrIncorrectLoginOrPassword.Error(), http.StatusUnauthorized)
+
 	// http.StatusInternalServerError
 	default:
 		http.Error(w, errs.ErrSomethingWentWrong.Error(), http.StatusInternalServerError)

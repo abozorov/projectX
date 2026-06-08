@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
+	"strings"
 
 	"github.com/abozorov/projectX/internal/models"
 	events "github.com/abozorov/projectX/internal/service/eventbus"
@@ -20,6 +22,51 @@ func NewUserService(storage *storage.UserStorage, bus *events.Bus) *UserService 
 	return &UserService{
 		storage: storage,
 		bus:     bus,
+	}
+}
+
+func validation(u *models.User, create bool) error {
+	if u.ID < 0 {
+		return errs.ErrInvalidUserId
+	}
+
+	if u.Name, u.Password = strings.TrimSpace(u.Name), strings.TrimSpace(u.Password); u.Name == "" ||
+		(u.Password == "" && create) {
+		return errs.ErrBadRequestBody
+	}
+
+	return nil
+}
+
+func (s *UserService) Login(ctx context.Context, u models.User) (string, error) {
+	// check user
+	if u.Password = strings.TrimSpace(u.Password); u.ID < 0 || u.Password == "" {
+		return "", errs.ErrIncorrectLoginOrPassword
+	}
+
+	// get user
+	user, err := s.storage.GetByID(ctx, u.ID)
+	if err != nil {
+		return "", fmt.Errorf("s.storage.Login: %w", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		return "", fmt.Errorf("s.storage.Login: %w", errs.ErrTimeoutExceeded)
+	default:
+		log.Print("\"", user.Password,"\" \"", u.Password, "\"")
+		if user.Password != u.Password {
+			return "", errs.ErrIncorrectLoginOrPassword
+		}
+
+		// audit
+		s.bus.Publish(events.Event{
+			Type:     "Login",
+			ClientId: rand.Int(),
+		})
+
+		// return autorization code
+		return "secret", nil
 	}
 }
 
@@ -70,9 +117,9 @@ func (s *UserService) GetByID(ctx context.Context, id int) (*models.User, error)
 }
 
 func (s *UserService) Create(ctx context.Context, u models.User) error {
-	// check id
-	if u.ID < 0 {
-		return errs.ErrInvalidUserId
+	// validation
+	if err := validation(&u, true); err != nil {
+		return err
 	}
 
 	// creating
@@ -95,10 +142,15 @@ func (s *UserService) Create(ctx context.Context, u models.User) error {
 	}
 }
 
-func (s *UserService) Update(ctx context.Context, id int, u models.User) error {
+func (s *UserService) Update(ctx context.Context, u models.User) error {
 	// check path id
-	if id < 0 || u.ID < 0 || id != u.ID {
-		return errs.ErrBadRequest
+	// if id < 0 || u.ID < 0 || id != u.ID {
+	// 	return errs.ErrBadRequest
+	// }
+
+	// validation
+	if err := validation(&u, false); err != nil {
+		return err
 	}
 
 	// updating
