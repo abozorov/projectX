@@ -12,7 +12,7 @@ type Logger struct {
 	Audit *zap.Logger
 }
 
-func NewLogger(devMode bool) (*Logger, error) {
+func NewLogger(devMode bool, auditLogStorage string) (*Logger, error) {
 	var cfg zap.Config
 	if devMode {
 		cfg = zap.NewDevelopmentConfig()
@@ -29,7 +29,7 @@ func NewLogger(devMode bool) (*Logger, error) {
 	}
 
 	auditCfg := cfg
-	auditCfg.OutputPaths = []string{"logs/audit.log"}
+	auditCfg.OutputPaths = []string{auditLogStorage}
 	auditLogger, err := auditCfg.Build()
 	if err != nil {
 		return &Logger{}, fmt.Errorf("auditLogger.Build: %w", err)

@@ -10,7 +10,7 @@ import (
 	"github.com/abozorov/projectX/internal/models"
 	events "github.com/abozorov/projectX/internal/service/eventbus"
 	"github.com/abozorov/projectX/internal/storage"
-	"github.com/abozorov/projectX/package/errs"
+	"github.com/abozorov/projectX/pkg/errs"
 )
 
 type UserService struct {
@@ -38,6 +38,28 @@ func validation(u *models.User, create bool) error {
 	return nil
 }
 
+func (s *UserService) DeleteUser(ctx context.Context, id int) error {
+	// delete user
+	err := s.storage.DeleteUser(ctx, id)
+	if err != nil {
+		return fmt.Errorf("s.storage.DeleteUser: %w", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("s.storage.DeleteUser: %w", errs.ErrTimeoutExceeded)
+	default:
+		// audit
+		s.bus.Publish(events.Event{
+			Type:     "Login",
+			ClientId: rand.Int(),
+		})
+
+		// return autorization code
+		return nil
+	}
+}
+
 func (s *UserService) Login(ctx context.Context, u models.User) (string, error) {
 	// check user
 	if u.Password = strings.TrimSpace(u.Password); u.ID < 0 || u.Password == "" {
@@ -54,7 +76,7 @@ func (s *UserService) Login(ctx context.Context, u models.User) (string, error) 
 	case <-ctx.Done():
 		return "", fmt.Errorf("s.storage.Login: %w", errs.ErrTimeoutExceeded)
 	default:
-		log.Print("\"", user.Password,"\" \"", u.Password, "\"")
+		log.Print("\"", user.Password, "\" \"", u.Password, "\"")
 		if user.Password != u.Password {
 			return "", errs.ErrIncorrectLoginOrPassword
 		}
@@ -80,6 +102,13 @@ func (s *UserService) GetAll(ctx context.Context) ([]models.User, error) {
 	case <-ctx.Done():
 		return []models.User{}, fmt.Errorf("s.storage.GetAll: %w", errs.ErrTimeoutExceeded)
 	default:
+		// delete non active users
+		for i := 0; i < len(users); i++ {
+			if !users[i].IsActive {
+				users = append(users[:i], users[i+1:]...)
+				i--
+			}
+		}
 		// audit
 		s.bus.Publish(events.Event{
 			Type:     "Get all users",

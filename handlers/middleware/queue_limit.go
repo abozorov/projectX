@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	requestQueue "github.com/abozorov/projectX/internal/request_queue"
-	"github.com/abozorov/projectX/package/errs"
+	"github.com/abozorov/projectX/pkg/errs"
 )
 
 func QueueLimit(queue *requestQueue.QueueLimit, next http.Handler) http.Handler {

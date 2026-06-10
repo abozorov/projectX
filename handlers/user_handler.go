@@ -9,8 +9,8 @@ import (
 	"github.com/abozorov/projectX/internal/models"
 	requestQueue "github.com/abozorov/projectX/internal/request_queue"
 	"github.com/abozorov/projectX/internal/service"
-	"github.com/abozorov/projectX/package/errs"
-	"github.com/abozorov/projectX/package/logger"
+	"github.com/abozorov/projectX/pkg/errs"
+	"github.com/abozorov/projectX/pkg/logger"
 	"go.uber.org/zap"
 )
 
@@ -53,6 +53,28 @@ func (h *UserHandler) updateContext(ctx context.Context, r *http.Request) contex
 
 	ctx, _ = context.WithDeadline(ctx, h.queue.GetEndTime(cliID, reqID))
 	return ctx
+}
+
+func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	// defer request done
+	defer h.doneRequest(r)
+
+	// check path
+	id, err := strconv.Atoi(r.PathValue("user_id"))
+	if err != nil {
+		h.log.Error("Func DeleteUser", zap.String("error", err.Error()))
+		errDistributor(errs.ErrBadRequest, w)
+		return
+	}
+
+	// delete user
+	err = h.service.DeleteUser(h.updateContext(r.Context(), r), id)
+	if err != nil {
+		h.log.Error("Func DeleteUser", zap.String("error", err.Error()))
+		errDistributor(err, w)
+		return
+	}
+	w.Write([]byte("user deleted"))
 }
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {

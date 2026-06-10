@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/abozorov/projectX/internal/models"
-	"github.com/abozorov/projectX/package/errs"
+	"github.com/abozorov/projectX/pkg/errs"
 )
 
 type UserStorage struct {
@@ -38,17 +38,33 @@ func NewUserStorage(fileName string) *UserStorage {
 	}
 }
 
-// func (s *UserStorage) Login(ctx context.Context, u models.User) (string, error) {
-// 	// load all users
-// 	users, err := s.GetAll(ctx)
-// 	if err != nil {
-// 		return "", err
-// 	}
+func (s *UserStorage) DeleteUser(ctx context.Context, id int) error {
+	// load users
+	users, err := s.GetAll(ctx)
+	if err != nil {
+		return err
+	}
 
-// 	// check user
+	// update with id
+	ok := false
+	for k, v := range users {
+		if v.ID == id && v.IsActive {
+			ok = true
+			users[k].IsActive = false
+			break
+		}
+	}
+	if !ok {
+		return errs.ErrUserIDNotFound
+	}
 
-// 	// return autorization code
-// }
+	// write data
+	resp := make([]user, 0, len(users))
+	for _, v := range users {
+		resp = append(resp, *newUser(v))
+	}
+	return writeData(s, resp)
+}
 
 func (s *UserStorage) GetAll(ctx context.Context) ([]models.User, error) {
 	// // sleep

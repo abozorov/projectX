@@ -12,18 +12,15 @@ import (
 	"time"
 
 	"github.com/abozorov/projectX/handlers"
+	"github.com/abozorov/projectX/internal/config"
 	"github.com/abozorov/projectX/internal/consumer"
 	"github.com/abozorov/projectX/internal/models"
 	requestQueue "github.com/abozorov/projectX/internal/request_queue"
 	"github.com/abozorov/projectX/internal/service"
 	events "github.com/abozorov/projectX/internal/service/eventbus"
 	"github.com/abozorov/projectX/internal/storage"
-	"github.com/abozorov/projectX/package/logger"
+	"github.com/abozorov/projectX/pkg/logger"
 	"go.uber.org/zap"
-)
-
-var (
-	dataFile = "data/users.json"
 )
 
 func initFile(fileName string) error {
@@ -42,13 +39,18 @@ func initFile(fileName string) error {
 }
 
 func main() {
+	//
+	cnf, err := config.NewConfig("internal/config/config.env")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// for logger
 	loggerCtx, loggerCancle := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
 	// create logger
-	logger, err := logger.NewLogger(true)
+	logger, err := logger.NewLogger(true, cnf.AuditLogStorage)
 	if err != nil {
 		logger.Error("Func main", zap.Error(err))
 		return
@@ -58,7 +60,7 @@ func main() {
 	bus := events.NewBus(10)
 	consumer.StartAuditConsumer(loggerCtx, &wg, bus, logger)
 
-	err = initFile(dataFile)
+	err = initFile(cnf.Storage)
 	if err != nil {
 		logger.Error("Func main", zap.Error(err))
 		return
@@ -70,14 +72,14 @@ func main() {
 	queue := requestQueue.NewQueueLimit(10)
 	requestQueue.StartQueueConsumer(loggerCtx, &wg, queue)
 
-	st := storage.NewUserStorage(dataFile)
+	st := storage.NewUserStorage(cnf.Storage)
 	service := service.NewUserService(st, bus)
 	h := handlers.NewUserHandler(service, logger, queue)
 
 	// create server
 	router := handlers.NewRouter(h, queue)
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    cnf.HttpHost,
 		Handler: router,
 	}
 

@@ -24,6 +24,9 @@ func StartQueueConsumer(ctx context.Context, wg *sync.WaitGroup, queue *QueueLim
 				reqID, _ := strconv.Atoi(idS[1])
 
 				queue.DeleteRequest(cliID, reqID)
+				// default:
+				// 	// log dropped event
+				// 	log.Println("dropped event")
 			}
 		}
 	}()

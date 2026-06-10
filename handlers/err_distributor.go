@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/abozorov/projectX/package/errs"
+	"github.com/abozorov/projectX/pkg/errs"
 )
 
 func errDistributor(err error, w http.ResponseWriter) {

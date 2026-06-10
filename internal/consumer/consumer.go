@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	events "github.com/abozorov/projectX/internal/service/eventbus"
-	"github.com/abozorov/projectX/package/logger"
+	"github.com/abozorov/projectX/pkg/logger"
 	"go.uber.org/zap"
 )
 
