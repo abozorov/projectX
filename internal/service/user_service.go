@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math/rand"
 
+	events "github.com/abozorov/projectX/internal/eventbus"
 	"github.com/abozorov/projectX/internal/models"
 	"github.com/abozorov/projectX/internal/repo"
-	events "github.com/abozorov/projectX/internal/service/eventbus"
 	"github.com/abozorov/projectX/pkg/errs"
 )
 
@@ -136,7 +136,6 @@ func (s *UserService) Login(ctx context.Context, u models.User) (string, error) 
 		return "", fmt.Errorf("s.storage.Login: %w", err)
 	}
 
-	// log.Print("\"", user.Password, "\" \"", u.Password, "\"")
 	if user.Password != u.Password {
 		return "", errs.ErrIncorrectLoginOrPassword
 	}

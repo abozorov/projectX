@@ -179,6 +179,7 @@ func (r *postgresRepo) Update(ctx context.Context, usr models.User) error {
 		UPDATE auth
 		SET login=$1
 		WHERE user_id=$2`
+		
 	transaction, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("r.db.Begin: %w", distributor(err))

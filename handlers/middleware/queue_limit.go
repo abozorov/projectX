@@ -12,6 +12,7 @@ import (
 
 func QueueLimit(queue *requestQueue.QueueLimit, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 		// get client id
 		cliID, err := strconv.Atoi(r.Header.Get("client_id"))
 		if err != nil {
@@ -19,8 +20,7 @@ func QueueLimit(queue *requestQueue.QueueLimit, next http.Handler) http.Handler 
 			http.Error(w, errs.ErrBadRequest.Error(), http.StatusBadRequest)
 			return
 		}
-		log.Printf("middlewware QueueLimit request cliID %d, len of queue %d\n", cliID, queue.QueueLen(cliID))
-
+		
 		// check quantity
 		if queue.CheckQueue(cliID) {
 			http.Error(w, errs.ErrTooManyRequests.Error(), http.StatusTooManyRequests)

@@ -2,13 +2,12 @@ package requestQueue
 
 import (
 	"context"
-	"log"
-	"strconv"
-	"strings"
 	"sync"
+
+	"github.com/abozorov/projectX/pkg/logger"
 )
 
-func StartQueueConsumer(ctx context.Context, wg *sync.WaitGroup, queue *QueueLimit) {
+func StartQueueConsumer(ctx context.Context, wg *sync.WaitGroup, queue *QueueLimit, log *logger.Logger) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -16,17 +15,12 @@ func StartQueueConsumer(ctx context.Context, wg *sync.WaitGroup, queue *QueueLim
 		for {
 			select {
 			case <-ctx.Done():
-				log.Println("Queue Consumer closed")
+				log.Info("Queue Consumer closed")
 				return
 			case req := <-queue.Subscribe():
-				idS := strings.Split(req, ":")
-				cliID, _ := strconv.Atoi(idS[0])
-				reqID, _ := strconv.Atoi(idS[1])
-
-				queue.DeleteRequest(cliID, reqID)
-				// default:
-				// 	// log dropped event
-				// 	log.Println("dropped event")
+				queue.DeleteRequest(req.clientId, req.requestId)
+			default:
+				log.Info("")
 			}
 		}
 	}()

@@ -46,14 +46,6 @@ type requestUser struct {
 	Password string `json:"password"`
 }
 
-func newRequestUser(u models.User) *requestUser {
-	return &requestUser{
-		Name:     u.Name,
-		Login:    u.Login,
-		Password: u.Password,
-	}
-}
-
 // user model for login
 type authUser struct {
 	Login    string `json:"login"`
@@ -76,12 +68,11 @@ func (h *UserHandler) doneRequest(r *http.Request) {
 	h.queue.Publish(cliID, reqID)
 }
 
-func (h *UserHandler) updateContext(ctx context.Context, r *http.Request) context.Context {
+func (h *UserHandler) updateContext(ctx context.Context, r *http.Request) (context.Context, context.CancelFunc) {
 	cliID, _ := strconv.Atoi(r.Header.Get("client_id"))
 	reqID, _ := strconv.Atoi(r.Header.Get("request_id"))
 
-	ctx, _ = context.WithDeadline(ctx, h.queue.GetEndTime(cliID, reqID))
-	return ctx
+	return context.WithDeadline(ctx, h.queue.GetEndTime(cliID, reqID))
 }
 
 func timeFormat(t time.Time) string {
@@ -89,13 +80,14 @@ func timeFormat(t time.Time) string {
 }
 
 func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
-	h.log.Info("Start func GetUsers")
 
 	// defer request done
 	defer h.doneRequest(r)
 
 	// load all
-	users, err := h.service.GetAll(h.updateContext(r.Context(), r))
+	ctx, cancle := h.updateContext(r.Context(), r)
+	defer cancle()
+	users, err := h.service.GetAll(ctx)
 	if err != nil {
 		distributor(err, w)
 		h.log.Error("Func GetUsers", zap.String("error", err.Error()))
@@ -118,7 +110,6 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	h.log.Info("Start func CreateUser")
 
 	// defer request done
 	defer h.doneRequest(r)
@@ -133,7 +124,9 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// creating & transform models.User -> user
-	err = h.service.Create(h.updateContext(r.Context(), r), *models.NewUser(usr.Name, usr.Login, usr.Password))
+	ctx, cancle := h.updateContext(r.Context(), r)
+	defer cancle()
+	err = h.service.Create(ctx, *models.NewUser(usr.Name, usr.Login, usr.Password))
 	if err != nil {
 		h.log.Error("Func CreateUser", zap.String("error", err.Error()))
 		distributor(err, w)
@@ -143,8 +136,6 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
-	h.log.Info("Start func GetUserByID", zap.String("user_id", r.PathValue("user_id")))
-
 	// defer request done
 	defer h.doneRequest(r)
 
@@ -157,7 +148,9 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get by id
-	usr, err := h.service.GetByID(h.updateContext(r.Context(), r), id)
+	ctx, cancle := h.updateContext(r.Context(), r)
+	defer cancle()
+	usr, err := h.service.GetByID(ctx, id)
 	if err != nil {
 		h.log.Error("Func GetUserByID", zap.String("error", err.Error()))
 		distributor(err, w)
@@ -177,7 +170,6 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	h.log.Info("Start func UpdateUser", zap.String("user_id", r.PathValue("user_id")))
 
 	// defer request done
 	defer h.doneRequest(r)
@@ -192,7 +184,9 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// updating
-	err = h.service.Update(h.updateContext(r.Context(), r), models.User{
+	ctx, cancle := h.updateContext(r.Context(), r)
+	defer cancle()
+	err = h.service.Update(ctx, models.User{
 		ID:    usr.ID,
 		Name:  usr.Name,
 		Login: usr.Login,
@@ -218,7 +212,9 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// delete user
-	err = h.service.DeleteUser(h.updateContext(r.Context(), r), id)
+	ctx, cancle := h.updateContext(r.Context(), r)
+	defer cancle()
+	err = h.service.DeleteUser(ctx, id)
 	if err != nil {
 		h.log.Error("Func DeleteUser", zap.String("error", err.Error()))
 		distributor(err, w)
@@ -241,7 +237,9 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check user
-	autorizationKey, err := h.service.Login(h.updateContext(r.Context(), r), models.User{
+	ctx, cancle := h.updateContext(r.Context(), r)
+	defer cancle()
+	autorizationKey, err := h.service.Login(ctx, models.User{
 		Login:    usr.Login,
 		Password: usr.Password,
 	})

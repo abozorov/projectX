@@ -1,14 +1,24 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
+	"time"
 )
 
 func Logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// пока не научился пушить logger по middlware
-		// fmt.Println(r.Method, r.URL.Path)
+
+		startTime := time.Now()
+		log.Printf("[INFO]	http.method: {%s} url: {%s} client_id: {%v}\n",
+			r.Method,
+			r.URL.Path,
+			r.Header.Get("client_id"))
 
 		next.ServeHTTP(w, r)
+
+		endTime := time.Now()
+		log.Printf("[INFO]	request duration: {%d} ms\n",
+			int(endTime.UnixMilli())-int(startTime.UnixMilli()))
 	})
 }

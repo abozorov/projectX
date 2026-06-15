@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -13,10 +14,10 @@ import (
 	"github.com/abozorov/projectX/handlers"
 	"github.com/abozorov/projectX/internal/config"
 	"github.com/abozorov/projectX/internal/consumer"
+	events "github.com/abozorov/projectX/internal/eventbus"
 	"github.com/abozorov/projectX/internal/repo"
 	requestQueue "github.com/abozorov/projectX/internal/request_queue"
 	"github.com/abozorov/projectX/internal/service"
-	events "github.com/abozorov/projectX/internal/service/eventbus"
 	"github.com/abozorov/projectX/pkg/db"
 	"github.com/abozorov/projectX/pkg/logger"
 	_ "github.com/lib/pq" // To register the driver.
@@ -45,10 +46,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// log.Println(cfg)
 
 	// for logger
-	loggerCtx, loggerCancle := context.WithCancel(context.Background())
+	ctx, cancle := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
 	// create logger
@@ -67,28 +67,17 @@ func main() {
 		DBName:   cfg.DBName,
 	})
 	if err != nil {
-		logger.Error("Func main", zap.Error(err))
+		logger.Error("main", zap.Error(err))
 		return
 	}
 
 	// create event bus
 	bus := events.NewBus(10)
-	consumer.StartAuditConsumer(loggerCtx, &wg, bus, logger)
-
-	/*
-		err = initFile(cfg.Storage)
-		if err != nil {
-			logger.Error("Func main", zap.Error(err))
-			return
-		}
-
-		start queue consumer
-		queueCtx, queueCancle := context.WithCancel(context.Background())
-	*/
+	consumer.StartAuditConsumer(ctx, &wg, bus, logger)
 
 	// register queue
 	queue := requestQueue.NewQueueLimit(10)
-	requestQueue.StartQueueConsumer(loggerCtx, &wg, queue)
+	requestQueue.StartQueueConsumer(ctx, &wg, queue, logger)
 
 	st := repo.NewpostgresRepo(db)
 	service := service.NewUserService(st, bus)
@@ -102,10 +91,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Server started localhost:%s started", server.Addr)
+		logger.Info(fmt.Sprintf("Server started localhost:%s started", server.Addr))
 		err = server.ListenAndServe()
 		if err != nil {
-			logger.Error("Func main", zap.Error(err))
+			logger.Error("main", zap.Error(err))
 			return
 		}
 	}()
@@ -115,8 +104,7 @@ func main() {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	<-stop
-	loggerCancle()
-	// queueCancle()
+	cancle()
 
 	logger.Info("Shutdown server started")
 	stopCtx, stopCancle := context.WithTimeout(context.Background(), time.Second*5)

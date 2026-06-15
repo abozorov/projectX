@@ -13,6 +13,5 @@ func NewClientRequest(clientID, requesID int) *ClientRequest {
 		ClientID:  clientID,
 		RequestID: requesID,
 		EndTime:   time.Now().Add(time.Minute),
-		// EndTime: time.Now().Add(time.Second * 10),
 	}
 }

@@ -16,7 +16,7 @@ var (
 	ErrInvalidUserId     = errors.New("invalid user id")
 
 	// Too Many Requests
-	ErrTooManyRequests = errors.New("too Many Requests")
+	ErrTooManyRequests = errors.New("too many requests")
 
 	// Timeout exceeded
 	ErrTimeoutExceeded = errors.New("timeout exceeded")
@@ -27,5 +27,5 @@ var (
 	// NotFound
 	ErrNotFound       = errors.New("not found")
 	ErrUserNotFound   = errors.New("user not found")
-	ErrUserIDNotFound = errors.New("user ID Not Found")
+	ErrUserIDNotFound = errors.New("user id Not Found")
 )

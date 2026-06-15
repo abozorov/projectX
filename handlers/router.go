@@ -15,15 +15,70 @@ func NewRouter(h *UserHandler, queue *requestQueue.QueueLimit) *Router {
 	userMux := http.NewServeMux()
 
 	// user handlers
-	userMux.Handle("GET /users", http.HandlerFunc(h.GetUsers))
-	userMux.Handle("GET /user/{user_id}", http.HandlerFunc(h.GetUserByID))
-	userMux.Handle("POST /user", http.HandlerFunc(h.CreateUser))
-	userMux.Handle("PUT /user", http.HandlerFunc(h.UpdateUser))
-	userMux.Handle("DELETE /user/{user_id}", http.HandlerFunc(h.DeleteUser))
-	userMux.Handle("/", middleware.QueueLimit(queue, middleware.Logging(middleware.Auth(userMux))))
+	userMux.Handle("GET /users",
+		middleware.QueueLimit(
+			queue,
+			middleware.Logging(
+				middleware.Auth(
+					http.HandlerFunc(h.GetUsers),
+				),
+			),
+		),
+	)
 
+	userMux.Handle("GET /user/{user_id}",
+		middleware.QueueLimit(
+			queue,
+			middleware.Logging(
+				middleware.Auth(
+					http.HandlerFunc(h.GetUserByID),
+				),
+			),
+		),
+	)
+	
+	userMux.Handle("POST /user",
+		middleware.QueueLimit(
+			queue,
+			middleware.Logging(
+				middleware.Auth(
+					http.HandlerFunc(h.CreateUser),
+				),
+			),
+		),
+	)
+
+	userMux.Handle("PUT /user",
+		middleware.QueueLimit(
+			queue,
+			middleware.Logging(
+				middleware.Auth(
+					http.HandlerFunc(h.UpdateUser),
+				),
+			),
+		),
+	)
+	
+	userMux.Handle("DELETE /user/{user_id}",
+		middleware.QueueLimit(
+			queue,
+			middleware.Logging(
+				middleware.Auth(
+					http.HandlerFunc(h.DeleteUser),
+				),
+			),
+		),
+	)
+	
 	// login
-	userMux.Handle("POST /login", middleware.QueueLimit(queue, middleware.Logging(http.HandlerFunc(h.Login))))
+	userMux.Handle("POST /login",
+		middleware.QueueLimit(
+			queue,
+			middleware.Logging(
+				http.HandlerFunc(h.Login),
+			),
+		),
+	)
 
 	return &Router{
 		userMux,
