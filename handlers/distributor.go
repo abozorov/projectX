@@ -7,7 +7,8 @@ import (
 	"github.com/abozorov/projectX/pkg/errs"
 )
 
-func errDistributor(err error, w http.ResponseWriter) {
+// pkg.errs -> http.Error
+func distributor(err error, w http.ResponseWriter) {
 
 	switch {
 	// http.StatusNotFound

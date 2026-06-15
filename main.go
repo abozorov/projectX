@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -14,43 +13,59 @@ import (
 	"github.com/abozorov/projectX/handlers"
 	"github.com/abozorov/projectX/internal/config"
 	"github.com/abozorov/projectX/internal/consumer"
-	"github.com/abozorov/projectX/internal/models"
+	"github.com/abozorov/projectX/internal/repo"
 	requestQueue "github.com/abozorov/projectX/internal/request_queue"
 	"github.com/abozorov/projectX/internal/service"
 	events "github.com/abozorov/projectX/internal/service/eventbus"
-	"github.com/abozorov/projectX/internal/storage"
+	"github.com/abozorov/projectX/pkg/db"
 	"github.com/abozorov/projectX/pkg/logger"
+	_ "github.com/lib/pq" // To register the driver.
 	"go.uber.org/zap"
 )
 
-func initFile(fileName string) error {
-	file, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	users := []models.User{}
-	err = json.NewDecoder(file).Decode(&users)
+/*
+	func initFile(fileName string) error {
+		file, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0644)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		users := []models.User{}
+		err = json.NewDecoder(file).Decode(&users)
 
-	if err != nil {
-		file.WriteString("[]")
+		if err != nil {
+			file.WriteString("[]")
+		}
+		return nil
 	}
-	return nil
-}
-
+*/
 func main() {
-	//
-	cnf, err := config.NewConfig("internal/config/config.env")
+	// get config
+	cfg, err := config.NewConfig("internal/config/config.env")
 	if err != nil {
 		log.Fatal(err)
 	}
+	// log.Println(cfg)
 
 	// for logger
 	loggerCtx, loggerCancle := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
 	// create logger
-	logger, err := logger.NewLogger(true, cnf.AuditLogStorage)
+	logger, err := logger.NewLogger(true, cfg.AuditLogStorage)
+	if err != nil {
+		log.Println("Func main", zap.Error(err))
+		return
+	}
+
+	// db connettion
+	db, err := db.New(db.Options{
+		Host:     cfg.DBHost,
+		Port:     cfg.DBPort,
+		User:     cfg.DBUser,
+		Password: cfg.DBPassword,
+		DBName:   cfg.DBName,
+	})
 	if err != nil {
 		logger.Error("Func main", zap.Error(err))
 		return
@@ -60,26 +75,29 @@ func main() {
 	bus := events.NewBus(10)
 	consumer.StartAuditConsumer(loggerCtx, &wg, bus, logger)
 
-	err = initFile(cnf.Storage)
-	if err != nil {
-		logger.Error("Func main", zap.Error(err))
-		return
-	}
+	/*
+		err = initFile(cfg.Storage)
+		if err != nil {
+			logger.Error("Func main", zap.Error(err))
+			return
+		}
 
-	// start queue consumer
-	// queueCtx, queueCancle := context.WithCancel(context.Background())
+		start queue consumer
+		queueCtx, queueCancle := context.WithCancel(context.Background())
+	*/
 
+	// register queue
 	queue := requestQueue.NewQueueLimit(10)
 	requestQueue.StartQueueConsumer(loggerCtx, &wg, queue)
 
-	st := storage.NewUserStorage(cnf.Storage)
+	st := repo.NewpostgresRepo(db)
 	service := service.NewUserService(st, bus)
 	h := handlers.NewUserHandler(service, logger, queue)
 
 	// create server
 	router := handlers.NewRouter(h, queue)
 	server := &http.Server{
-		Addr:    cnf.HttpHost,
+		Addr:    cfg.HttpHost,
 		Handler: router,
 	}
 

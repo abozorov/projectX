@@ -1,4 +1,4 @@
-package storage
+package main
 
 import (
 	"context"
@@ -92,7 +92,6 @@ func (s *UserStorage) GetAll(ctx context.Context) ([]models.User, error) {
 		resp = append(resp, models.User{
 			ID:       v.ID,
 			Name:     v.Name,
-			Password: v.Password,
 			IsActive: v.IsActive,
 		})
 	}
@@ -155,9 +154,8 @@ func (s *UserStorage) Create(ctx context.Context, usr models.User) error {
 	resp := make([]user, 0, len(users))
 	for _, v := range users {
 		resp = append(resp, user{
-			ID:       v.ID,
-			Name:     v.Name,
-			Password: v.Password,
+			ID:   v.ID,
+			Name: v.Name,
 		})
 	}
 	return writeData(s, resp)
