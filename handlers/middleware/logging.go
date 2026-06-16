@@ -10,7 +10,7 @@ func Logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		startTime := time.Now()
-		log.Printf("[INFO]	http.method: {%s} url: {%s} client_id: {%v}\n",
+		log.Printf("[INFO]	START http.method: {%s} url: {%s} client_id: {%v}\n",
 			r.Method,
 			r.URL.Path,
 			r.Header.Get("client_id"))
@@ -18,7 +18,7 @@ func Logging(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 
 		endTime := time.Now()
-		log.Printf("[INFO]	request duration: {%d} ms\n",
+		log.Printf("[INFO]	END request duration: {%d} ms\n\n",
 			int(endTime.UnixMilli())-int(startTime.UnixMilli()))
 	})
 }

@@ -24,8 +24,8 @@ func StartAuditConsumer(ctx context.Context, wg *sync.WaitGroup, bus *events.Bus
 					event.Type,
 					zap.Int("client_id", event.ClientId),
 				)
-			default:
-				log.Info("") // log dropped event
+			// default:
+			// 	log.Info("") // log dropped event
 			}
 		}
 

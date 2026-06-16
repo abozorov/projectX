@@ -11,7 +11,7 @@ type request struct {
 }
 
 type QueueLimit struct {
-	mu           *sync.Mutex
+	mu           sync.Mutex
 	queue        map[int][]ClientRequest
 	doneRequests chan request
 }

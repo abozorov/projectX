@@ -64,11 +64,11 @@ func (r *postgresRepo) GetAll(ctx context.Context) ([]models.User, error) {
 	users := make([]models.User, 0)
 	for rows.Next() { // 5 = 1,2,3,4,5
 		var user models.User
-		err = rows.Scan( // rows = 1,Ali,12,2026-06-12 13:40:07.222153
-			&user.ID,        // id = 1
-			&user.Name,      // name = Ali
-			&user.Login,     //login
-			&user.CreatedAt, // created_at = 2026-06-12 13:40:07.222153
+		err = rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Login,
+			&user.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("rows.Scan: %w", err)
@@ -179,7 +179,7 @@ func (r *postgresRepo) Update(ctx context.Context, usr models.User) error {
 		UPDATE auth
 		SET login=$1
 		WHERE user_id=$2`
-		
+
 	transaction, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("r.db.Begin: %w", distributor(err))

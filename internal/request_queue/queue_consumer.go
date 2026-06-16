@@ -19,8 +19,8 @@ func StartQueueConsumer(ctx context.Context, wg *sync.WaitGroup, queue *QueueLim
 				return
 			case req := <-queue.Subscribe():
 				queue.DeleteRequest(req.clientId, req.requestId)
-			default:
-				log.Info("")
+			// default:
+			// 	log.Info("")
 			}
 		}
 	}()
