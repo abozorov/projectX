@@ -26,7 +26,18 @@ func NewRouter(h *UserHandler, queue *requestQueue.QueueLimit) *Router {
 		),
 	)
 
-	userMux.Handle("GET /user/{user_id}",
+	userMux.Handle("GET /users/stats",
+		middleware.QueueLimit(
+			queue,
+			middleware.Logging(
+				middleware.Auth(
+					http.HandlerFunc(h.GetUsersStats),
+				),
+			),
+		),
+	)
+
+	userMux.Handle("GET /user/{id}",
 		middleware.QueueLimit(
 			queue,
 			middleware.Logging(
@@ -54,6 +65,17 @@ func NewRouter(h *UserHandler, queue *requestQueue.QueueLimit) *Router {
 			middleware.Logging(
 				middleware.Auth(
 					http.HandlerFunc(h.UpdateUser),
+				),
+			),
+		),
+	)
+
+	userMux.Handle("PATCH /user/{id}/password",
+		middleware.QueueLimit(
+			queue,
+			middleware.Logging(
+				middleware.Auth(
+					http.HandlerFunc(h.UpdatePassword),
 				),
 			),
 		),

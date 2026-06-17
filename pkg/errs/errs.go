@@ -23,6 +23,7 @@ var (
 
 	// Unautorized
 	ErrIncorrectLoginOrPassword = errors.New("incorrect login or password")
+	ErrIncorrectPassword        = errors.New("incorrect password")
 
 	// NotFound
 	ErrNotFound       = errors.New("not found")

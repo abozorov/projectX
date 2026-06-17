@@ -42,6 +42,8 @@ func distributor(err error, w http.ResponseWriter) {
 	// http.StatusUnauthorized
 	case errors.Is(err, errs.ErrIncorrectLoginOrPassword):
 		http.Error(w, errs.ErrIncorrectLoginOrPassword.Error(), http.StatusUnauthorized)
+	case errors.Is(err, errs.ErrIncorrectPassword):
+		http.Error(w, errs.ErrIncorrectPassword.Error(), http.StatusUnauthorized)
 
 	// http.StatusInternalServerError
 	default:

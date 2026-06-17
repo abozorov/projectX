@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"strings"
 
 	events "github.com/abozorov/projectX/internal/eventbus"
 	"github.com/abozorov/projectX/internal/models"
@@ -25,9 +26,15 @@ func NewUserService(storage repo.UIUserRepo, bus *events.Bus) *UserService {
 
 func (s *UserService) GetAll(ctx context.Context) ([]models.User, error) {
 	// get all users
-	users, err := s.storage.GetAll(ctx)
+	allUsers, err := s.storage.GetAll(ctx)
 	if err != nil {
 		return []models.User{}, fmt.Errorf("s.storage.GetAll: %w", err)
+	}
+	activeUsers := make([]models.User, 0, len(allUsers))
+	for _, v := range allUsers {
+		if v.IsActive {
+			activeUsers = append(activeUsers, v)
+		}
 	}
 
 	s.bus.Publish(events.Event{
@@ -35,7 +42,33 @@ func (s *UserService) GetAll(ctx context.Context) ([]models.User, error) {
 		ClientId: rand.Int(),
 	})
 
-	return users, nil
+	return activeUsers, nil
+
+}
+
+func (s *UserService) GetUsersStats(ctx context.Context) (*models.Stats, error) {
+	// get all users
+	users, err := s.storage.GetAll(ctx)
+	if err != nil {
+		return &models.Stats{}, fmt.Errorf("/user_service GetUsersStats s.GetAll: %w", err)
+	}
+	stats := models.NewStats()
+
+	for _, v := range users {
+		if v.IsActive {
+			stats.ActiveUsers++
+		} else {
+			stats.InactiveUsers++
+		}
+	}
+	stats.TotalUsers = len(users)
+
+	s.bus.Publish(events.Event{
+		Type:     "Get all users",
+		ClientId: rand.Int(),
+	})
+
+	return stats, nil
 
 }
 
@@ -106,7 +139,35 @@ func (s *UserService) Update(ctx context.Context, u models.User) error {
 	})
 
 	return nil
+}
 
+func (s *UserService) UpdatePassword(ctx context.Context, u models.User, newPassword string) error {
+	// check id
+	if u.ID < 1 {
+		return errs.ErrInvalidUserId
+	}
+
+	// check password
+	curPassword, err := s.storage.GetUserPassword(ctx, u.ID)
+	if err != nil {
+		return fmt.Errorf("/user_service UpdatePassword s.GetUserPassword: %w", err)
+	}
+	newPassword = strings.TrimSpace(newPassword)
+	if u.Password != curPassword {
+		return fmt.Errorf("/user_service UpdatePassword: %w", errs.ErrIncorrectPassword)
+	}
+	if len([]rune(newPassword)) < 8 {
+		return fmt.Errorf("/user_service UpdatePassword: %w", errs.ErrBadRequestBody)
+	}
+
+	// updating password
+	u.Password = newPassword
+	err = s.storage.UpdatePassword(ctx, u)
+	if err != nil {
+		return fmt.Errorf("/user_service UpdatePassword s.UpdatePassword: %w", err)
+	}
+
+	return nil
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, id int) error {

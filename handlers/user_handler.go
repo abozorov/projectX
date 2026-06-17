@@ -46,6 +46,12 @@ type requestUser struct {
 	Password string `json:"password"`
 }
 
+// update password model
+type updatePassword struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
 // user model for login
 type authUser struct {
 	Login    string `json:"login"`
@@ -104,6 +110,30 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
 		h.log.Error("Func GetUsers", zap.String("error", err.Error()))
+		distributor(err, w)
+		return
+	}
+}
+
+func (h *UserHandler) GetUsersStats(w http.ResponseWriter, r *http.Request) {
+
+	// defer request done
+	defer h.doneRequest(r)
+
+	// load all
+	ctx, cancle := h.updateContext(r.Context(), r)
+	defer cancle()
+	stats, err := h.service.GetUsersStats(ctx)
+	if err != nil {
+		distributor(err, w)
+		h.log.Error("Func GetUsers", zap.String("error", err.Error()))
+		return
+	}
+
+	// write request
+	err = json.NewEncoder(w).Encode(stats)
+	if err != nil {
+		h.log.Error("/user_handle GetUserStats json.Encode", zap.String("error", err.Error()))
 		distributor(err, w)
 		return
 	}
@@ -170,7 +200,6 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-
 	// defer request done
 	defer h.doneRequest(r)
 
@@ -196,7 +225,47 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		distributor(err, w)
 		return
 	}
+
+	// ans
 	w.Write([]byte("User Updated"))
+}
+
+func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
+	// defer request done
+	defer h.doneRequest(r)
+
+	// check path
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		h.log.Error("/user_handler h.UpdatePassword strconv.Atoi: ", zap.String("error", err.Error()))
+		distributor(errs.ErrBadRequest, w)
+		return
+	}
+
+	// get request body
+	upPass := updatePassword{}
+	err = json.NewDecoder(r.Body).Decode(&upPass)
+	if err != nil {
+		h.log.Error("/user_handler h.UpdatePassword json.Decode: ", zap.String("error", err.Error()))
+		distributor(err, w)
+		return
+	}
+
+	// send to service
+	ctx, cancle := h.updateContext(r.Context(), r)
+	defer cancle()
+	err = h.service.UpdatePassword(ctx, models.User{
+		ID:       id,
+		Password: upPass.OldPassword,
+	}, upPass.NewPassword)
+	if err != nil {
+		h.log.Error("/user_handler h.UpdatePassword: ", zap.String("error", err.Error()))
+		distributor(err, w)
+		return
+	}
+
+	// ans
+	w.Write([]byte("password updated"))
 }
 
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
